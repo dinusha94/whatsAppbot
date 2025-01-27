@@ -1,0 +1,19 @@
+
+Typical Agent flow 
+
+prompt template -> prompt (using ChatPromptTemplate.from_messages) -> create agent (agent = prompt | llm | JsonOutputParser()) -> invoke agent (agent.invoke())
+
+
+
+Notifications
+
+The 868613069528371 (Batch: 603) encountered an Signal Strength failure .
+
+The SAB80SO0006 (Batch: 454_SenzAgro_Valve_Devices) encountered an SA_Battery_Type_1 failure .
+
+The SAB80SO0006 (Batch: 454_SenzAgro_Valve_Devices) encountered an SA_Battery_Type_1 failure .
+
+
+"SA_Signalstrength failure indicates that the device, in this case, the SAB80SO0071, is experiencing issues with its signal strength, 
+which may affect its ability to communicate effectively. This could lead to reduced performance or a complete failure in sending or receiving data.
+ It's advisable to check the device's connection and surrounding environment for potential sources of interference or issues."
