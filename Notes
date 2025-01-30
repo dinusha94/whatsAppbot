@@ -17,3 +17,38 @@ The SAB80SO0006 (Batch: 454_SenzAgro_Valve_Devices) encountered an SA_Battery_Ty
 "SA_Signalstrength failure indicates that the device, in this case, the SAB80SO0071, is experiencing issues with its signal strength, 
 which may affect its ability to communicate effectively. This could lead to reduced performance or a complete failure in sending or receiving data.
  It's advisable to check the device's connection and surrounding environment for potential sources of interference or issues."
+
+
+
+ #############################################################################################################################################################
+
+
+ {
+  "field": "messages",
+  "value": {
+    "messaging_product": "whatsapp",
+    "metadata": {
+      "display_phone_number": "16505551111",
+      "phone_number_id": "123456123"
+    },
+    "contacts": [
+      {
+        "profile": {
+          "name": "test user name"
+        },
+        "wa_id": "16315551181"
+      }
+    ],
+    "messages": [
+      {
+        "from": "16315551181",
+        "id": "ABGGFlA5Fpa",
+        "timestamp": "1504902988",
+        "type": "text",
+        "text": {
+          "body": "this is a text message"
+        }
+      }
+    ]
+  }
+}

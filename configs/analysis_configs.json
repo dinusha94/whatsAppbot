@@ -3,7 +3,8 @@
         "6": {
             "104": {
                 "analysis_configs": "Analysis 104",
-                "vectordb": "NULL"
+                "vectordb": "EXIST",
+                "vdb_status": "idle"
             }
         }
     }

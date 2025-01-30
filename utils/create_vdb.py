@@ -125,7 +125,6 @@ def creating_vector_dbs(db_name,reference_id,pdf_dir_path):
         if not Path(PROCESSING_STATUS_INFO_FILE_PATH).is_file():
             ## create the file and save it as processing
             vdb_status = processing_status_update(
-                reference_id,
                 PROCESSING_STATUS_INFO_FILE_PATH,
                 update_status="idle"
             )
@@ -159,7 +158,6 @@ def creating_vector_dbs(db_name,reference_id,pdf_dir_path):
         
         ## save the processing status in the json file
         vdb_status = processing_status_update(
-            reference_id,
             PROCESSING_STATUS_INFO_FILE_PATH,
             update_status="processing"
         )
@@ -190,7 +188,6 @@ def creating_vector_dbs(db_name,reference_id,pdf_dir_path):
                 ds_session = ds_session
             )
         vdb_status = processing_status_update(
-            reference_id,
             PROCESSING_STATUS_INFO_FILE_PATH,
             update_status="idle"
         )
@@ -213,9 +210,10 @@ def creating_vector_dbs(db_name,reference_id,pdf_dir_path):
             ex=ex,
         )
 
+        print(exception)
+
         ## save the processing status in the json file
         vdb_status = processing_status_update(
-            reference_id,
             PROCESSING_STATUS_INFO_FILE_PATH,
             update_status="idle"
         )

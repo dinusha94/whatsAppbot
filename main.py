@@ -16,7 +16,7 @@ from datetime import datetime
 from pathlib import Path
 from dotenv import load_dotenv
 from motor.motor_asyncio import AsyncIOMotorClient # type: ignore
-from fastapi import FastAPI,HTTPException,Request,UploadFile,Form,Depends
+from fastapi import FastAPI,HTTPException,Request,UploadFile,Form,Depends,Response
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -24,10 +24,15 @@ from utils.notifier_operations import notification_generate,past_notification_ge
 from utils.document_handling import document_db
 from utils.create_vdb import creating_vector_dbs
 from utils.delete_docs import delete_documents
+
+from utils.whatsapp_utills import parse_whatsapp_message, save_chat
+
 from model.common_chatbot import common_chatbot
 from model.models import graph,filter_chat_history,process_chat_history,list_to_string,string_to_list
 from pymongo import MongoClient
 from langchain_openai import AzureChatOpenAI
+
+from utils.mongo_manager import MongoDBmanager
 
 
 load_dotenv()
@@ -36,6 +41,29 @@ OPENAI_API_VERSION = os.environ["OPENAI_API_VERSION"]
 AZURE_OPENAI_ENDPOINT = os.environ["AZURE_OPENAI_ENDPOINT"]
 AZURE_OPENAI_API_KEY = os.environ["AZURE_OPENAI_API_KEY"]
 OPENAI_API_TYPE = os.environ["OPENAI_API_TYPE"]
+
+# whatsapp credentials
+WHAT_TOKEN = os.getenv("ACCESS_TOKEN")   
+VERIFY_TOKEN = os.getenv("VERIFY_TOKEN")
+PHONE_NUMBER = os.getenv("RECIPIENT_WAID") # my number
+VERSION = os.getenv("VERSION")
+PHONE_NUMBER_ID = os.getenv("PHONE_NUMBER_ID") # test number
+
+
+# connect to the mongoDB collections
+whatsapp_user_collection = MongoDBmanager("WhatsAppUser")
+whatsapp_chat_collection = MongoDBmanager("WhatsAppChat")
+whatsapp_message_collection = MongoDBmanager("WhatsAppMessage")
+whatsapp_media_collection = MongoDBmanager("WhatsAppMedia")
+
+    
+# insert ai agent user
+agent_user_id = whatsapp_user_collection.insert_user({
+                "name" : "ai_agent",
+                "phone_number" : PHONE_NUMBER_ID, 
+            })
+
+print(agent_user_id)
 
 llm_config = {"model": "gpt-4o",
              "api_key": AZURE_OPENAI_API_KEY,
@@ -47,6 +75,24 @@ llm = AzureChatOpenAI(
     deployment_name="gpt-4o-mini",
     model="gpt-4o-mini"
 )
+
+import subprocess
+
+def send_message(response, received_phone_num):
+    curl_command = [
+        "curl", "-i", "-X", "POST", f"https://graph.facebook.com/{VERSION}/{PHONE_NUMBER_ID}/messages",
+        "-H", "Authorization: Bearer EAATgIZBZBKVPIBOw2Y4lIHzYBo9EDg0gjg92sH04bu8AO3EgBk2oFZB4saihZBAeKlHFmblZB9eKUgDB2lmf59dxbDlYZC0iVvgoKczgey38lTPoPsymF4Tg6ZC70tcWuuYvG4XROkpjITwqvxPXrwlF2OeRvEZBC2ZCqtVZA4S87026lhW3ee7EdXZB34SoY8TrKZCTilOZCdmYhnFaTaoZB0ZApZACbfgZBNZCVrL8LtFmUZD",
+        "-H", "Content-Type: application/json",
+        "-d", f'{{ "messaging_product": "whatsapp", "to": "{received_phone_num}", "type": "text", "text": {{ "body": "{response}" }} }}'
+    ]
+    
+    try:
+        # Run the curl command
+        result = subprocess.run(curl_command, capture_output=True, text=True, check=True)
+        print("Response:", result.stdout)
+    except subprocess.CalledProcessError as e:
+        print("Error occurred:", e.stderr)
+
 
 # Initialize FastAPI
 app = FastAPI()
@@ -1015,5 +1061,54 @@ async def common_chat(request: Request):
         "result": response
     }
 
+
+
+@app.api_route("/webhook", methods=["GET", "POST"])
+async def watsapp_bot(request: Request):
+    if request.method == 'GET':
+        # Access query parameters in FastAPI
+        mode = request.query_params.get('hub.mode')
+        verify_token = request.query_params.get('hub.verify_token')
+        challenge = request.query_params.get('hub.challenge')
+
+        print("Mode:", mode)
+        print("Verify Token:", verify_token)
+
+        if mode and verify_token:
+            if mode == 'subscribe' and verify_token == VERIFY_TOKEN:
+                # Return 200 response with the challenge
+                return Response(content=challenge, status_code=200)
+            else:
+                # Return 403 response for invalid verify token
+                return Response(content="Forbidden access", status_code=403)
+        else:
+            # Return 400 response for missing parameters
+            return Response(content="No data provided", status_code=400)
+
+    elif request.method == 'POST':
+        # Access JSON body in POST request
+        body = await request.json()
+        # print("POST Body:", body)
+        
+        parsed_messages = parse_whatsapp_message(body)
+        
+        # echo the recieved massage
+        
+        for message in parsed_messages:
+            
+            # TODO : run the chat bot and send the answer
+            response = "llm_response"
+
+            # send the responce to user
+            send_message(message['message_content'], message['sender_phone'])
+            
+            # save the chat history
+            save_chat(message, response, agent_user_id, \
+                    whatsapp_user_collection, whatsapp_chat_collection, whatsapp_message_collection, whatsapp_media_collection)
+
+        # Process the body (your logic goes here)
+        return Response(content="Webhook received successfully!", status_code=200)
+
+   
 if __name__ == '__main__':
     uvicorn.run(app, host='0.0.0.0', port=8007)
