@@ -62,6 +62,16 @@ class MongoDBmanager:
         res = collection.find_one(query)
         return res
 
+    def get_text_content(self, whatsapp_message_id):
+        _DB = self.client[self.db]
+        collection = _DB[self.collection]
+        
+        query = {"whatsapp_message_id": whatsapp_message_id}
+        res = collection.find_one(query, {"message_content": 1, "_id": 0})  # Only retrieve text_content
+        
+        return res["message_content"] if res else None  # Return text_content if found, else None
+
+
     """
     get documents by query
     """

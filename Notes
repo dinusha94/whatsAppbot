@@ -20,35 +20,14 @@ which may affect its ability to communicate effectively. This could lead to redu
 
 
 
- #############################################################################################################################################################
+ #########################################################  send message using API and curl   ################################################################
 
 
- {
-  "field": "messages",
-  "value": {
+curl -i -X POST   "https://graph.facebook.com/v21.0/538035872729300/messages"   -H "Authorization: Bearer EAATgIZBZBKVPIBO0bj8Pg1KS3jfj67w7HRfAIyjBMgYAq96djQXhhilZBXuELn1MHz10C4QN5AzWcfiZA1XmJTz6zZBja0JAW5bbiOkvBL21Agh2IlbJnUKRsG08b1qxFJkrqhg1XD4V491jkkt0lnRoEagMOk1pomRvdRRAwnoandZBJkXWNsxZB4ZCIr3ysNHxADeTbFWezyL0uZAaDf4mlstj8EJPetb75w5sZD"   -H "Content-Type: application/json"   -d '{
     "messaging_product": "whatsapp",
-    "metadata": {
-      "display_phone_number": "16505551111",
-      "phone_number_id": "123456123"
-    },
-    "contacts": [
-      {
-        "profile": {
-          "name": "test user name"
-        },
-        "wa_id": "16315551181"
-      }
-    ],
-    "messages": [
-      {
-        "from": "16315551181",
-        "id": "ABGGFlA5Fpa",
-        "timestamp": "1504902988",
-        "type": "text",
-        "text": {
-          "body": "this is a text message"
-        }
-      }
-    ]
-  }
-}
+    "to": "94778122597",
+    "type": "text",
+    "text": {
+      "body": "Notification SA_Signalstrength failure indicates that the device, in this case, the SAB80SO0071"
+    }
+  }'

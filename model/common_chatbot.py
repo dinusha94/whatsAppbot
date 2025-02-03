@@ -9,6 +9,9 @@ from typing_extensions import TypedDict
 from typing import Annotated,List
 from langgraph.graph import START,END,StateGraph
 
+from langchain_google_genai import GoogleGenerativeAIEmbeddings
+from langchain_chroma import Chroma
+
 load_dotenv()
 GOOGLE_API_KEY=os.environ["GOOGLE_API_KEY"]
 OPENAI_API_VERSION = os.environ["OPENAI_API_VERSION"] 
@@ -253,10 +256,49 @@ def retrieve(state):
     Returns:
         state (dict): New key added to state, documents, that contains retrieved documents
     """
-    print("State", state)
-    print("---RETRIEVED DOCUMENTS---")
+    user_query = state["user_query"]
+    reference_id = 6 # state["reference_id"]
+    # notification = state ["notification"]
+    # past_notifications = state["past_notifications"]
+    batch_number = 104 # state ["batch_number"]
+    # chat_history = state.get("chat_history", [])
 
-    return state
+    call_back = 0
+    filtered_docs = ""
+
+    while call_back < 3:
+
+        print("---RE-WRITTEN QUESTION---")
+        print(f"Re-written question: {user_query}")
+
+        # Retrieval
+        embeddings = GoogleGenerativeAIEmbeddings(model="models/embedding-001")
+
+        vectorstore_humanoid_qa = Chroma(persist_directory=f"docs/chroma/{reference_id}/guidelines_{batch_number}",
+                              collection_name=f"guidelines_{batch_number}",
+                              embedding_function=embeddings,
+                              collection_metadata={"hnsw:space": "cosine"})
+
+        retriever_humanoid_qa = vectorstore_humanoid_qa.as_retriever(search_kwargs={"k":3})
+
+        retrieved_docs = retriever_humanoid_qa.invoke(user_query)
+
+        retrieved_docs_str = "\n".join(doc.page_content for doc in retrieved_docs) if retrieved_docs else ""
+
+        if retrieved_docs:
+            filtered_docs = retrieved_docs_str
+            break
+        else:
+            call_back += 1
+
+    print("---RETRIEVED DOCUMENTS---")
+    #print(f"context: {filtered_docs}")
+    print(f"context: {filtered_docs if filtered_docs else 'No relevant documents found.'}")
+    for doc in retrieved_docs:
+        print(doc.metadata)
+
+    return {"context": filtered_docs, "question": user_query, "chat_history": []}
+
 
 def common_chatbot():
     workflow = StateGraph(GraphState)

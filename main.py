@@ -16,7 +16,7 @@ from datetime import datetime
 from pathlib import Path
 from dotenv import load_dotenv
 from motor.motor_asyncio import AsyncIOMotorClient # type: ignore
-from fastapi import FastAPI,HTTPException,Request,UploadFile,Form,Depends,Response
+from fastapi import FastAPI,HTTPException,Request,UploadFile,Form,Depends,Response, BackgroundTasks
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -25,7 +25,7 @@ from utils.document_handling import document_db
 from utils.create_vdb import creating_vector_dbs
 from utils.delete_docs import delete_documents
 
-from utils.whatsapp_utills import parse_whatsapp_message, save_chat
+from utils.whatsapp_utills import parse_user_message, save_chat, get_whatsapp_chat_history, check_notification, parse_notification_message, save_notification
 
 from model.common_chatbot import common_chatbot
 from model.models import graph,filter_chat_history,process_chat_history,list_to_string,string_to_list
@@ -81,7 +81,7 @@ import subprocess
 def send_message(response, received_phone_num):
     curl_command = [
         "curl", "-i", "-X", "POST", f"https://graph.facebook.com/{VERSION}/{PHONE_NUMBER_ID}/messages",
-        "-H", "Authorization: Bearer EAATgIZBZBKVPIBOw2Y4lIHzYBo9EDg0gjg92sH04bu8AO3EgBk2oFZB4saihZBAeKlHFmblZB9eKUgDB2lmf59dxbDlYZC0iVvgoKczgey38lTPoPsymF4Tg6ZC70tcWuuYvG4XROkpjITwqvxPXrwlF2OeRvEZBC2ZCqtVZA4S87026lhW3ee7EdXZB34SoY8TrKZCTilOZCdmYhnFaTaoZB0ZApZACbfgZBNZCVrL8LtFmUZD",
+        "-H", "Authorization: Bearer EAATgIZBZBKVPIBO0bj8Pg1KS3jfj67w7HRfAIyjBMgYAq96djQXhhilZBXuELn1MHz10C4QN5AzWcfiZA1XmJTz6zZBja0JAW5bbiOkvBL21Agh2IlbJnUKRsG08b1qxFJkrqhg1XD4V491jkkt0lnRoEagMOk1pomRvdRRAwnoandZBJkXWNsxZB4ZCIr3ysNHxADeTbFWezyL0uZAaDf4mlstj8EJPetb75w5sZD",
         "-H", "Content-Type: application/json",
         "-d", f'{{ "messaging_product": "whatsapp", "to": "{received_phone_num}", "type": "text", "text": {{ "body": "{response}" }} }}'
     ]
@@ -991,7 +991,7 @@ async def process_query(query: QueryRequest): #### process rootcause quary #####
 async def common_chat(request: Request):
 
     payload = await request.json()
-    session_id = payload.get("sessionId")
+    session_id = payload.get("sessionId") ## may or may not be nessary for whatapp
     user_id = payload.get("userId")
     reference_id = payload.get("referenceId")
     user_query = payload.get("user_query")
@@ -1061,10 +1061,98 @@ async def common_chat(request: Request):
         "result": response
     }
 
+async def process_message(parsed_message):
+    """Processes the message in the background."""
+    try:
+        # get the chat model
+        common_model = common_chatbot()
+        
+        # load the chat history
+        
+        # TODO : load only the latest few virtual sessions, (in single thread chat, virtual session is typicaly 3 days of messages)
+        chat_history = get_whatsapp_chat_history(
+            parsed_message, 
+            whatsapp_user_collection, 
+            whatsapp_chat_collection, 
+            whatsapp_message_collection
+        )
 
+        inputs = {
+            "user_query": parsed_message["message_content"],
+            "chat_history": chat_history,
+            "notifications_summary": ""
+        }
+        model_response = common_model.invoke(inputs)
+        response = model_response.get("generation", {}).get("response", "Sorry, I didn't understand that.")
+
+        # send the llm response
+        send_message(response, parsed_message.get("sender_phone"))
+        
+        # save the chat
+        save_chat(
+            parsed_message, response, agent_user_id, 
+            whatsapp_user_collection, whatsapp_chat_collection, 
+            whatsapp_message_collection, whatsapp_media_collection
+        )
+
+    except Exception as e:
+        print(f"Processing Error: {e}")
+        
+async def handle_incoming_message(request: Request, background_tasks: BackgroundTasks):
+    
+    try:
+        body = await request.json()
+        print(body)
+
+        
+        # TODO : check if the webhook requests is about an notification message or a user responce
+        notification = check_notification(body)
+        
+        if notification:
+            # TODO : use the notofication whatsapp id to get the notifiaction message from frontend
+            notification_messages = parse_notification_message(body)
+            # TODO : call the API to get the notification related data (get the whatapp message id from notification_messages)
+            # then update the notification_messages in message_content field
+            notification_messages[0]["message_content"] = "update here"
+            # TODO : save notofication as a message in chat history
+            save_notification(notification_messages[0], agent_user_id, whatsapp_user_collection, whatsapp_chat_collection, whatsapp_message_collection)
+            
+        else:
+            parsed_messages = parse_user_message(body)
+    
+
+        # if not parsed_messages:
+            # print(body)
+            # return Response(content="No valid messages found", status_code=400)
+
+        ### TODO: we need to save the notifications send by the frontend
+        # for them we don't need to send through the chat bot
+        # we will identify those messages using the id in the notification message
+        # and save them in the notification collection
+        # then when user initiate a reply message on a notification we will use 
+        # the notification collection to get the notification message (we'll use the context field for this) and other related data
+        # using the provided notification API if nessary
+        
+        processed_parsed_message = parsed_messages[0]
+        
+        if processed_parsed_message['reply_message_context']:
+            # get the reply message using whatsapp id and combine it with the user question
+            reply_message_whatsapp_id = processed_parsed_message['reply_message_context']['id']
+            rep_msg = whatsapp_message_collection.get_text_content(reply_message_whatsapp_id)
+            cur_msg = processed_parsed_message['message_content']
+        
+            processed_parsed_message['message_content'] = f"{rep_msg} : {cur_msg}"
+        
+        # Immediately acknowledge receipt before processing
+        background_tasks.add_task(process_message, processed_parsed_message)
+
+        return Response(content="Webhook received successfully!", status_code=200)
+    
+    except Exception as e:
+        return Response(content=f"Error: {str(e)}", status_code=500)
 
 @app.api_route("/webhook", methods=["GET", "POST"])
-async def watsapp_bot(request: Request):
+async def watsapp_bot(request: Request, background_tasks: BackgroundTasks):
     if request.method == 'GET':
         # Access query parameters in FastAPI
         mode = request.query_params.get('hub.mode')
@@ -1083,31 +1171,12 @@ async def watsapp_bot(request: Request):
                 return Response(content="Forbidden access", status_code=403)
         else:
             # Return 400 response for missing parameters
+            print("kkkkkkk")
             return Response(content="No data provided", status_code=400)
 
     elif request.method == 'POST':
-        # Access JSON body in POST request
-        body = await request.json()
-        # print("POST Body:", body)
+        return await handle_incoming_message(request, background_tasks)  # Fix: Pass background_tasks
         
-        parsed_messages = parse_whatsapp_message(body)
-        
-        # echo the recieved massage
-        
-        for message in parsed_messages:
-            
-            # TODO : run the chat bot and send the answer
-            response = "llm_response"
-
-            # send the responce to user
-            send_message(message['message_content'], message['sender_phone'])
-            
-            # save the chat history
-            save_chat(message, response, agent_user_id, \
-                    whatsapp_user_collection, whatsapp_chat_collection, whatsapp_message_collection, whatsapp_media_collection)
-
-        # Process the body (your logic goes here)
-        return Response(content="Webhook received successfully!", status_code=200)
 
    
 if __name__ == '__main__':

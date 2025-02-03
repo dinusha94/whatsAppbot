@@ -130,7 +130,7 @@ def creating_vector_dbs(db_name,reference_id,pdf_dir_path):
             )
 
         embedding_model = load_embedding_model()
-        r_text_splitter = RecursiveCharacterTextSplitter(separators=['\n'], chunk_size=750, chunk_overlap=100)
+        r_text_splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=150)
 
         #########
         doc_db_engine = doc_create_dh_db(doc_db_connection_string)
