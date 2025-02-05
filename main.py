@@ -78,10 +78,12 @@ llm = AzureChatOpenAI(
 
 import subprocess
 
+BEARER_TOKEN = os.getenv("FB_ACCESS_TOKEN")
+
 def send_message(response, received_phone_num):
     curl_command = [
         "curl", "-i", "-X", "POST", f"https://graph.facebook.com/{VERSION}/{PHONE_NUMBER_ID}/messages",
-        "-H", "Authorization: Bearer EAATgIZBZBKVPIBO0bj8Pg1KS3jfj67w7HRfAIyjBMgYAq96djQXhhilZBXuELn1MHz10C4QN5AzWcfiZA1XmJTz6zZBja0JAW5bbiOkvBL21Agh2IlbJnUKRsG08b1qxFJkrqhg1XD4V491jkkt0lnRoEagMOk1pomRvdRRAwnoandZBJkXWNsxZB4ZCIr3ysNHxADeTbFWezyL0uZAaDf4mlstj8EJPetb75w5sZD",
+        "-H", f"Authorization: Bearer {BEARER_TOKEN}",
         "-H", "Content-Type: application/json",
         "-d", f'{{ "messaging_product": "whatsapp", "to": "{received_phone_num}", "type": "text", "text": {{ "body": "{response}" }} }}'
     ]
@@ -1113,9 +1115,13 @@ async def handle_incoming_message(request: Request, background_tasks: Background
             notification_messages = parse_notification_message(body)
             # TODO : call the API to get the notification related data (get the whatapp message id from notification_messages)
             # then update the notification_messages in message_content field
+            # for other messages , e.g. sending messages also this code is trigerd , verify it with the above API, 
+            # (if there are no notification by that wam.id dont save)
             notification_messages[0]["message_content"] = "update here"
             # TODO : save notofication as a message in chat history
             save_notification(notification_messages[0], agent_user_id, whatsapp_user_collection, whatsapp_chat_collection, whatsapp_message_collection)
+            
+            return Response(content="Webhook received successfully!", status_code=200)
             
         else:
             parsed_messages = parse_user_message(body)
@@ -1143,12 +1149,14 @@ async def handle_incoming_message(request: Request, background_tasks: Background
         
             processed_parsed_message['message_content'] = f"{rep_msg} : {cur_msg}"
         
+        print(processed_parsed_message)
         # Immediately acknowledge receipt before processing
         background_tasks.add_task(process_message, processed_parsed_message)
 
         return Response(content="Webhook received successfully!", status_code=200)
     
     except Exception as e:
+        print("oooooooooooooooooooo")
         return Response(content=f"Error: {str(e)}", status_code=500)
 
 @app.api_route("/webhook", methods=["GET", "POST"])

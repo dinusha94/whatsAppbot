@@ -110,7 +110,7 @@ def save_notification(notification, agent_user_id, user_collection, chat_collect
                 "phone_number" : phone_number,
             })
     
-    # insert llm responce
+    # insert notification
     notification_db_id = message_collection.insert_one(
         {
             "timestamp" : notification_timestamp,

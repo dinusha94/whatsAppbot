@@ -22,8 +22,10 @@ which may affect its ability to communicate effectively. This could lead to redu
 
  #########################################################  send message using API and curl   ################################################################
 
+export FB_ACCESS_TOKEN="EAATgIZBZBKVPIBOyi8MRYoQJU0WRVvKLaaBFV4LhlLUUVsdZAcPJQ9l55eA2e2UgskS4J9ffidZCIozEsEnTTOzf1e3sE8Hw3k7zwfezNT0KN6ZCxEb5cEL5zYwfZCUz7ey9e9TooyaDYZAZCURDkE3P3Op3YYjcE5ZBZAlCy9EsDCLkPwB9J19QB8ojOQZALRRF0ZA2nQ5z9yb9l0Uip1t7eBLZCRVovp5TLaO6PZAZAIZD"
 
-curl -i -X POST   "https://graph.facebook.com/v21.0/538035872729300/messages"   -H "Authorization: Bearer EAATgIZBZBKVPIBO0bj8Pg1KS3jfj67w7HRfAIyjBMgYAq96djQXhhilZBXuELn1MHz10C4QN5AzWcfiZA1XmJTz6zZBja0JAW5bbiOkvBL21Agh2IlbJnUKRsG08b1qxFJkrqhg1XD4V491jkkt0lnRoEagMOk1pomRvdRRAwnoandZBJkXWNsxZB4ZCIr3ysNHxADeTbFWezyL0uZAaDf4mlstj8EJPetb75w5sZD"   -H "Content-Type: application/json"   -d '{
+
+curl -i -X POST   "https://graph.facebook.com/v21.0/538035872729300/messages"   -H "Authorization: Bearer EAATgIZBZBKVPIBOyi8MRYoQJU0WRVvKLaaBFV4LhlLUUVsdZAcPJQ9l55eA2e2UgskS4J9ffidZCIozEsEnTTOzf1e3sE8Hw3k7zwfezNT0KN6ZCxEb5cEL5zYwfZCUz7ey9e9TooyaDYZAZCURDkE3P3Op3YYjcE5ZBZAlCy9EsDCLkPwB9J19QB8ojOQZALRRF0ZA2nQ5z9yb9l0Uip1t7eBLZCRVovp5TLaO6PZAZAIZD"   -H "Content-Type: application/json"   -d '{
     "messaging_product": "whatsapp",
     "to": "94778122597",
     "type": "text",
