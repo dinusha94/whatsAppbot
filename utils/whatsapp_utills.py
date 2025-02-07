@@ -193,11 +193,11 @@ def save_chat(user_message, responce, agent_user_id, user_collection, chat_colle
 
 def get_whatsapp_chat_history(user_message, user_collection, chat_collection, message_collection):
   
-    sender_name = user_message['sender_name']
+    sender_phone = user_message['sender_phone']
     
     chat_history = []
     
-    query = {"name": sender_name}
+    query = {"phone_number": sender_phone}
     user_document = user_collection.get_one_document(query)
     if user_document:
         user_id = user_document["_id"]
@@ -212,18 +212,20 @@ def get_whatsapp_chat_history(user_message, user_collection, chat_collection, me
                 query = {"_id": id}
                 message_document = message_collection.get_one_document(query)
                 
-                if message_document['message_type'] == 'text':
-                    chat_history.append(message_document['message_content'])
+                sender_id = message_document['sender_id']
+                ret = user_collection.get_one_document({'_id': sender_id})
                 
-            print(chat_history)
-            
+                if message_document['message_type'] == 'text':
+                    chat_history.append(f"{ret['name']} : {message_document['message_content']}")
+                
+            # print(chat_history)
             return chat_history
         
         else:
-            print(f"No chats recorded for user : {sender_name}")  
+            print(f"No chats recorded for user : {sender_phone}")  
             return chat_history
     else:
-        print(f"No such user : {sender_name}")
+        print(f"No such user : {sender_phone}")
         return chat_history        
             
             

@@ -148,6 +148,7 @@ AUTH_HEADER_PREFIX = "Bearer"
 
 # Dependency for validating tokens
 def validate_token(credentials: HTTPAuthorizationCredentials):
+    # get the bareear token from the http request header
     token = credentials.credentials
 
     # Validate token using the external auth server
@@ -1105,6 +1106,11 @@ async def handle_incoming_message(request: Request, background_tasks: Background
     try:
         body = await request.json()
         print(body)
+        
+        # TODO : 
+        # 1. verify user with phone number
+        # 2. get user id and reference id
+        
 
         
         # TODO : check if the webhook requests is about an notification message or a user responce
@@ -1156,7 +1162,6 @@ async def handle_incoming_message(request: Request, background_tasks: Background
         return Response(content="Webhook received successfully!", status_code=200)
     
     except Exception as e:
-        print("oooooooooooooooooooo")
         return Response(content=f"Error: {str(e)}", status_code=500)
 
 @app.api_route("/webhook", methods=["GET", "POST"])
@@ -1179,7 +1184,6 @@ async def watsapp_bot(request: Request, background_tasks: BackgroundTasks):
                 return Response(content="Forbidden access", status_code=403)
         else:
             # Return 400 response for missing parameters
-            print("kkkkkkk")
             return Response(content="No data provided", status_code=400)
 
     elif request.method == 'POST':
