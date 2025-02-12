@@ -139,6 +139,17 @@ class MongoDBmanager:
             ret = collection.insert_one(data)
             return ret
 
+    def check_id_in_list(self, field_name, target_id):
+        _DB = self.client[self.db]
+        collection = _DB[self.collection]
+
+        res = collection.find_one({}, {field_name: 1, "_id": 0})  
+
+        # Check if the target_id exists in the list
+        return target_id in res[field_name] if res and isinstance(res.get(field_name), list) else False
+
+
+
     def append_notification_messages(self, new_entry):
         """
         Append a dictionary (new_entry) to the `notification_messages` list in all documents.
@@ -156,6 +167,19 @@ class MongoDBmanager:
             )
             return ret.modified_count  # Number of modified documents
         return None
+    
+    def append_wamid(self, wamid):
+        _DB = self.client[self.db]
+        collection = _DB[self.collection]
+        ret = collection.update_many(
+            {},  # No filter, applies to all documents
+            {"$push": {"wamid_list": wamid}},  # Append to the lis
+                upsert=True
+        )
+        return ret.modified_count  # Number of modified documents
+    
+    
+    
     
     def update_last_dev_batch(self, new_dev_entry):
         """

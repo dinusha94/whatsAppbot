@@ -1,6 +1,21 @@
 # import datetime
 from datetime import datetime
 import re
+import json
+import os
+import subprocess
+from dotenv import load_dotenv
+
+dotenv_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), ".env")
+
+# Load the .env file
+load_dotenv(dotenv_path)
+
+# WHAT_TOKEN = os.getenv("ACCESS_TOKEN")   
+# VERIFY_TOKEN = os.getenv("VERIFY_TOKEN")
+PHONE_NUMBER = os.getenv("RECIPIENT_WAID") # my number
+VERSION = os.getenv("VERSION")
+PHONE_NUMBER_ID = os.getenv("PHONE_NUMBER_ID") # test number
 
 # this function checks the webhook request is about and user reply from wahasapp application or a notification from API
 def check_notification(data):
@@ -124,6 +139,23 @@ def parse_user_message(data):
     
     return parsed_messages
 
+
+def get_wamid_sent_messages(stdout):
+    # Split the response into headers and JSON body
+    parts = stdout.split("\n\n", 1)  # Split at the first double newline
+    if len(parts) > 1:
+        json_str = parts[1].strip()  # Extract and clean the JSON part
+    else:
+        raise ValueError("No JSON body found in response")
+
+    # Parse JSON
+    data = json.loads(json_str)
+
+    # Extract the message ID
+    message_id = data.get("messages", [{}])[0].get("id", None)
+
+    return message_id
+
 def save_notification(notification, agent_user_id, user_collection, chat_collection, message_collection, notification_collection):
     
     current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -172,7 +204,44 @@ def save_notification(notification, agent_user_id, user_collection, chat_collect
                 })
     
 
-def save_chat(user_message, responce, agent_user_id, user_collection, chat_collection, message_collection, media_collection):
+
+
+def send_message(response, received_phone_num):
+    url = f"https://graph.facebook.com/{VERSION}/{PHONE_NUMBER_ID}/messages"
+    headers = {
+        "Authorization": "Bearer EAATgIZBZBKVPIBO4qhBQppVhj3YLEc608vRE1QFIbZBw27ObreCztnrefHO7OB5TCJ67xligMMX5zmdAa1yFpP7ik5JUSnAx8uHO7nZBXH87ijZAXHT45AQ8hDSQYBOI7kTxzHGQkZBxJ0gZAgghYZBrBvfEfMUPaVf7MBj8cgB6QR8Qa3lGKo5gWjFuJjKQyWAt0PafZBzzZCNAMAhIVlOGhiE5CPUGiDGf6uZAuaC",
+        "Content-Type": "application/json"
+    }
+    
+    data = {
+        "messaging_product": "whatsapp",
+        "to": received_phone_num,
+        "type": "text",
+        "text": {
+            "body": response
+        }
+    }
+    
+    curl_command = [
+        "curl", "-i", "-X", "POST", url,
+        "-H", f"Authorization: {headers['Authorization']}",
+        "-H", f"Content-Type: {headers['Content-Type']}",
+        "-d", json.dumps(data)
+    ]
+    
+    try:
+        result = subprocess.run(curl_command, capture_output=True, text=True, check=True)
+        # print("Response:", result.stdout)
+        return get_wamid_sent_messages(result.stdout)
+        
+        # save the wamid to filter them in the webhook
+        
+    except subprocess.CalledProcessError as e:
+        print("Error occurred:", e.stderr)
+        return -1
+        
+        
+def save_chat(user_message, responce, agent_user_id, user_collection, chat_collection, message_collection, responce_collection):
     
     current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     
@@ -206,7 +275,11 @@ def save_chat(user_message, responce, agent_user_id, user_collection, chat_colle
         })
     
     
-  
+    sent_wamid = send_message(responce, user_message.get("sender_phone"))
+    
+    # update sent_id collection with the wamid
+    responce_collection.append_wamid(sent_wamid)
+    
     
     # insert llm responce
     llm_response_id = message_collection.insert_one(
@@ -216,7 +289,8 @@ def save_chat(user_message, responce, agent_user_id, user_collection, chat_colle
             "recipient_id" : user_id,  
             "message_type" : "text",
             "media_id" : "",
-            "message_content" : responce
+            "message_content" : responce,
+            "whatsapp_message_id" : sent_wamid
             
         })
     
