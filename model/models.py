@@ -460,14 +460,14 @@ def retrieve(state):
         print(f"Re-written question: {better_question}")
 
         # Retrieval
-        embeddings = GoogleGenerativeAIEmbeddings(model="models/text-embedding-004")
+        embeddings = GoogleGenerativeAIEmbeddings(model="models/embedding-001")  # "models/text-embedding-004" is diffrent from the one (models/embedding-001) creating the embeddings
 
         vectorstore_humanoid_qa = Chroma(persist_directory=f"docs/chroma/{reference_id}/guidelines_{batch_number}",
                               collection_name=f"guidelines_{batch_number}",
                               embedding_function=embeddings,
                               collection_metadata={"hnsw:space": "cosine"})
 
-        retriever_humanoid_qa = vectorstore_humanoid_qa.as_retriever(search_kwargs={"k":12})
+        retriever_humanoid_qa = vectorstore_humanoid_qa.as_retriever(search_kwargs={"k":3})
 
         retrieved_docs = retriever_humanoid_qa.invoke(better_question)
 

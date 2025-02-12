@@ -22,14 +22,18 @@ which may affect its ability to communicate effectively. This could lead to redu
 
  #########################################################  send message using API and curl   ################################################################
 
-export FB_ACCESS_TOKEN="EAATgIZBZBKVPIBOyi8MRYoQJU0WRVvKLaaBFV4LhlLUUVsdZAcPJQ9l55eA2e2UgskS4J9ffidZCIozEsEnTTOzf1e3sE8Hw3k7zwfezNT0KN6ZCxEb5cEL5zYwfZCUz7ey9e9TooyaDYZAZCURDkE3P3Op3YYjcE5ZBZAlCy9EsDCLkPwB9J19QB8ojOQZALRRF0ZA2nQ5z9yb9l0Uip1t7eBLZCRVovp5TLaO6PZAZAIZD"
+export FB_ACCESS_TOKEN="EAATgIZBZBKVPIBO5ZAu2XvZBYvbSr5tLdXHIDWw8CbGZCW1jbvv4E3VoUcB6BcMQq7yUJOYuMihGBnJPXxCbpCPKy8JR7o3VeWoWSwUcB5UE1eTutEKKGcBABNC8kZBjg4N9v8ozlHosdEM1D2f1Tu48knS4gEySyHeQQSbK71Ea9fXe40UZCzBZAc9CbYda3kojrXGGFicRIMURtFg6PBDn028v6FRvXaQeam0ZD"
 
 
-curl -i -X POST   "https://graph.facebook.com/v21.0/538035872729300/messages"   -H "Authorization: Bearer EAATgIZBZBKVPIBOyi8MRYoQJU0WRVvKLaaBFV4LhlLUUVsdZAcPJQ9l55eA2e2UgskS4J9ffidZCIozEsEnTTOzf1e3sE8Hw3k7zwfezNT0KN6ZCxEb5cEL5zYwfZCUz7ey9e9TooyaDYZAZCURDkE3P3Op3YYjcE5ZBZAlCy9EsDCLkPwB9J19QB8ojOQZALRRF0ZA2nQ5z9yb9l0Uip1t7eBLZCRVovp5TLaO6PZAZAIZD"   -H "Content-Type: application/json"   -d '{
-    "messaging_product": "whatsapp",
-    "to": "94778122597",
-    "type": "text",
-    "text": {
-      "body": "Notification SA_Signalstrength failure indicates that the device, in this case, the SAB80SO0071"
-    }
-  }'
+curl -i -X POST "https://graph.facebook.com/v21.0/538035872729300/messages" \
+     -H "Authorization: Bearer EAATgIZBZBKVPIBO5DTAaDAD6dJXZCYDavPfZBKOwE9xGEexKTq6Woe6ec8Ec06aH4L7Fu0DrWaaD4PLRxpO4djA04VdzkRgiQ0UzobNl1Y1pZCtlJNn8zigTc7IKYHZCbJOh3HBAZBZCQhD5dR0aaZCZBqLJxnlJLI1gyojrKRGxfpmYZBQ2nqYHZBadnbi7SXdfsZBFJJQjspK1tCEi4QS9gtAeTZBDyIaX2qofbikfoZD" \
+     -H "Content-Type: application/json" \
+     -d '{
+       "messaging_product": "whatsapp",
+       "to": "94778122597",
+       "type": "text",
+       "text": {
+         "body": "Hi chatbot! The NUC_G6JY117002X2_4 (Batch: 66) encountered an Overcurrent isuue, Event Code:3802"
+       }
+     }'
+

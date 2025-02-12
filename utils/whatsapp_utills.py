@@ -1,5 +1,6 @@
 # import datetime
 from datetime import datetime
+import re
 
 # this function checks the webhook request is about and user reply from wahasapp application or a notification from API
 def check_notification(data):
@@ -11,9 +12,17 @@ def check_notification(data):
         for change in changes:
             value = change.get('value', {})
             if 'messages' in value.keys():
-                return False
+                return 1
             elif 'statuses' in value.keys():
-                return True
+                statuses = value.get('statuses', [])  
+            
+                for status in statuses:  
+                    if status['status'] == 'sent':
+                        return 0
+                    elif status['status'] == 'read':
+                        return -1
+                    elif status['status'] == 'delivered':
+                        return -1
 
 def parse_notification_message(data):   
     if not data.get('entry'):
@@ -39,12 +48,31 @@ def parse_notification_message(data):
                     notification_messages.append({
                         "sender_phone": recipient_id,
                         "message_content": "",
+                        "device_id" : "",
+                        "batch_number" : "",
                         "message_timestamp": message_timestamp,
                         "whatsapp_message_id" : notification_message_id                        
                     })
     
     return notification_messages          
     
+
+def extract_device_and_batch_info(message):
+    """
+    Extracts device_id and batch_number from a given notification message.
+    
+    :param message: The notification message string.
+    :return: A dictionary with 'device_id' and 'batch_number' or None if not found.
+    """
+    pattern = r"The\s+([\w-]+)\s+\(Batch:\s*([\w-]+)\)"
+
+    match = re.search(pattern, message)
+    if match:
+        return {
+            "device_id": match.group(1),
+            "batch_number": match.group(2)
+        }
+    return None
 
 def parse_user_message(data):
     # Validate that the input has the required structure
@@ -96,7 +124,7 @@ def parse_user_message(data):
     
     return parsed_messages
 
-def save_notification(notification, agent_user_id, user_collection, chat_collection, message_collection):
+def save_notification(notification, agent_user_id, user_collection, chat_collection, message_collection, notification_collection):
     
     current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     
@@ -104,6 +132,8 @@ def save_notification(notification, agent_user_id, user_collection, chat_collect
     notification_timestamp = notification['message_timestamp']
     phone_number = notification['sender_phone']
     whatsapp_message_id = notification['whatsapp_message_id']
+    device_id =  notification["device_id"]
+    batch_number = notification["batch_number"]
     
     # create user if not previously created (notification dont required a name)
     user_id = user_collection.insert_user({
@@ -111,27 +141,36 @@ def save_notification(notification, agent_user_id, user_collection, chat_collect
             })
     
     # insert notification
-    notification_db_id = message_collection.insert_one(
+    notification_message_id = message_collection.insert_one(
         {
             "timestamp" : notification_timestamp,
             "sender_id" : agent_user_id,
             "recipient_id" : user_id,  
             "message_type" : "text",
             "media_id" : "",
+            "device_id" : device_id,
+            "batch_number" :batch_number,
             "message_content" : notification_message,
             "whatsapp_message_id" : whatsapp_message_id
             
         })
     
-    # create a chat
+    # create / update a chat
     chat_id = chat_collection.insert_chat(
                 {
                     "user_id": user_id,
                     "start_timestamp": current_time,
                     "last_updated_timestamp": current_time,
-                    "message_ids" : [notification_db_id.inserted_id]
+                    "message_ids" : [notification_message_id.inserted_id]
                 })
 
+    # update notification collection
+    not_id = notification_collection.append_notification_messages(
+                {
+                    "phone_num" : phone_number,
+                    "notification_message_id" : notification_message_id.inserted_id
+                })
+    
 
 def save_chat(user_message, responce, agent_user_id, user_collection, chat_collection, message_collection, media_collection):
     

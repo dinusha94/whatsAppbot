@@ -25,7 +25,7 @@ from utils.document_handling import document_db
 from utils.create_vdb import creating_vector_dbs
 from utils.delete_docs import delete_documents
 
-from utils.whatsapp_utills import parse_user_message, save_chat, get_whatsapp_chat_history, check_notification, parse_notification_message, save_notification
+from utils.whatsapp_utills import parse_user_message, save_chat, get_whatsapp_chat_history, check_notification, parse_notification_message, save_notification, extract_device_and_batch_info
 
 from model.common_chatbot import common_chatbot
 from model.models import graph,filter_chat_history,process_chat_history,list_to_string,string_to_list
@@ -34,6 +34,7 @@ from langchain_openai import AzureChatOpenAI
 
 from utils.mongo_manager import MongoDBmanager
 
+import traceback
 
 load_dotenv()
 GOOGLE_API_KEY = os.environ["GOOGLE_API_KEY"]
@@ -55,6 +56,7 @@ whatsapp_user_collection = MongoDBmanager("WhatsAppUser")
 whatsapp_chat_collection = MongoDBmanager("WhatsAppChat")
 whatsapp_message_collection = MongoDBmanager("WhatsAppMessage")
 whatsapp_media_collection = MongoDBmanager("WhatsAppMedia")
+whatsapp_notification_collection = MongoDBmanager("WhatsAppNotification")
 
     
 # insert ai agent user
@@ -78,22 +80,55 @@ llm = AzureChatOpenAI(
 
 import subprocess
 
-BEARER_TOKEN = os.getenv("FB_ACCESS_TOKEN")
+# BEARER_TOKEN = os.getenv("FB_ACCESS_TOKEN")
+
+# def send_message(response, received_phone_num):
+#     curl_command = [
+#         "curl", "-i", "-X", "POST", f"https://graph.facebook.com/{VERSION}/{PHONE_NUMBER_ID}/messages",
+#         "-H", f"Authorization: Bearer EAATgIZBZBKVPIBO5ZAu2XvZBYvbSr5tLdXHIDWw8CbGZCW1jbvv4E3VoUcB6BcMQq7yUJOYuMihGBnJPXxCbpCPKy8JR7o3VeWoWSwUcB5UE1eTutEKKGcBABNC8kZBjg4N9v8ozlHosdEM1D2f1Tu48knS4gEySyHeQQSbK71Ea9fXe40UZCzBZAc9CbYda3kojrXGGFicRIMURtFg6PBDn028v6FRvXaQeam0ZD",
+#         "-H", "Content-Type: application/json",
+#         "-d", f'{{ "messaging_product": "whatsapp", "to": "{received_phone_num}", "type": "text", "text": {{ "body": "{response}" }} }}'
+#     ]
+    
+#     try:
+#         # Run the curl command
+#         result = subprocess.run(curl_command, capture_output=True, text=True, check=True)
+#         print("Response:", result.stdout)
+#     except subprocess.CalledProcessError as e:
+#         print("Error occurred:", e.stderr)
+
+import subprocess
+import json
 
 def send_message(response, received_phone_num):
+    url = f"https://graph.facebook.com/{VERSION}/{PHONE_NUMBER_ID}/messages"
+    headers = {
+        "Authorization": "Bearer EAATgIZBZBKVPIBO5DTAaDAD6dJXZCYDavPfZBKOwE9xGEexKTq6Woe6ec8Ec06aH4L7Fu0DrWaaD4PLRxpO4djA04VdzkRgiQ0UzobNl1Y1pZCtlJNn8zigTc7IKYHZCbJOh3HBAZBZCQhD5dR0aaZCZBqLJxnlJLI1gyojrKRGxfpmYZBQ2nqYHZBadnbi7SXdfsZBFJJQjspK1tCEi4QS9gtAeTZBDyIaX2qofbikfoZD",
+        "Content-Type": "application/json"
+    }
+    
+    data = {
+        "messaging_product": "whatsapp",
+        "to": received_phone_num,
+        "type": "text",
+        "text": {
+            "body": response
+        }
+    }
+    
     curl_command = [
-        "curl", "-i", "-X", "POST", f"https://graph.facebook.com/{VERSION}/{PHONE_NUMBER_ID}/messages",
-        "-H", f"Authorization: Bearer {BEARER_TOKEN}",
-        "-H", "Content-Type: application/json",
-        "-d", f'{{ "messaging_product": "whatsapp", "to": "{received_phone_num}", "type": "text", "text": {{ "body": "{response}" }} }}'
+        "curl", "-i", "-X", "POST", url,
+        "-H", f"Authorization: {headers['Authorization']}",
+        "-H", f"Content-Type: {headers['Content-Type']}",
+        "-d", json.dumps(data)
     ]
     
     try:
-        # Run the curl command
         result = subprocess.run(curl_command, capture_output=True, text=True, check=True)
         print("Response:", result.stdout)
     except subprocess.CalledProcessError as e:
         print("Error occurred:", e.stderr)
+
 
 
 # Initialize FastAPI
@@ -907,7 +942,7 @@ async def process_query(query: QueryRequest): #### process rootcause quary #####
                   "chat_history": chat_history,
                   "device_id": device_id,
                   "batch_number" :batch_number,
-                  "notification":notification,                     ## what is this notification is it relewent to the user quary ?
+                  "notification":notification,                   
                   "past_notifications":past_notifications,
                   "reference_id":reference_id,
                   "user_id":user_id
@@ -1064,11 +1099,29 @@ async def common_chat(request: Request):
         "result": response
     }
 
+async def process_notification(notification_messages):
+    # TODO : call the API to get the notification related data (get the whatapp message id from notification_messages)
+    # then update the notification_messages in message_content field
+    # for other messages , e.g. sending messages also this code is trigerd , verify it with the above API, 
+    # (if there are no notification by that wam.id dont save)
+    notification_messages[0]["message_content"] = "Hi chatbot! The NUC_G6JY117002X2_4 (Batch: 66) encountered an Residual current too high, Event Code:3802"
+    
+    #"Hi chatbot ! The NUC_G6JY117002X2_4 (Batch: 66) encountered an AC Energy failuredue to ENERGY PRODUCTION 0 : REASON - CABINET OPEN, Event Code:3501 - Insulation failure."
+    
+    # extract device id and batch id
+    ret =  extract_device_and_batch_info(notification_messages[0]["message_content"])
+    notification_messages[0]["device_id"] = ret["device_id"]
+    notification_messages[0]["batch_number"] = ret["batch_number"]
+    
+    # TODO : save notofication as a message in chat history
+    save_notification(notification_messages[0], agent_user_id, whatsapp_user_collection, whatsapp_chat_collection, whatsapp_message_collection, whatsapp_notification_collection)
+            
+
 async def process_message(parsed_message):
     """Processes the message in the background."""
     try:
-        # get the chat model
-        common_model = common_chatbot()
+        # get the qa model
+        model = graph() 
         
         # load the chat history
         
@@ -1083,23 +1136,42 @@ async def process_message(parsed_message):
         inputs = {
             "user_query": parsed_message["message_content"],
             "chat_history": chat_history,
-            "notifications_summary": ""
+            "device_id": parsed_message["device_id"],
+            "batch_number" :parsed_message["batch_number"],
+            "notification": parsed_message["notification"],
+            "past_notifications":parsed_message["past_notifications"],
+            "reference_id": parsed_message["reference_id"],
+            "user_id": parsed_message["user_id"]
         }
-        model_response = common_model.invoke(inputs)
-        response = model_response.get("generation", {}).get("response", "Sorry, I didn't understand that.")
-
-        # send the llm response
-        send_message(response, parsed_message.get("sender_phone"))
         
-        # save the chat
-        save_chat(
-            parsed_message, response, agent_user_id, 
-            whatsapp_user_collection, whatsapp_chat_collection, 
-            whatsapp_message_collection, whatsapp_media_collection
-        )
+        print(inputs)
+        
+        config = {"configurable": {"session_id": 1}}
+    
+        model_response = model.invoke(inputs,config)
+
+        generation = model_response['generation']
+        Type = generation['Type']
+
+        if Type == 'text':
+            response = generation['response']
+            print("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")
+            print(response)
+
+            # send the llm response
+            send_message(response, parsed_message.get("sender_phone"))
+                
+            # save the chat
+            save_chat(
+                parsed_message, response, agent_user_id, 
+                whatsapp_user_collection, whatsapp_chat_collection, 
+                whatsapp_message_collection, whatsapp_media_collection
+            )
 
     except Exception as e:
-        print(f"Processing Error: {e}")
+        print("Processing Error occurred:")
+        traceback.print_exc()
+        # print(f"Processing Error: {e}")
         
 async def handle_incoming_message(request: Request, background_tasks: BackgroundTasks):
     
@@ -1107,61 +1179,93 @@ async def handle_incoming_message(request: Request, background_tasks: Background
         body = await request.json()
         print(body)
         
-        # TODO : 
-        # 1. verify user with phone number
-        # 2. get user id and reference id
-        
-
-        
         # TODO : check if the webhook requests is about an notification message or a user responce
         notification = check_notification(body)
         
-        if notification:
+        if (notification == 0):
             # TODO : use the notofication whatsapp id to get the notifiaction message from frontend
             notification_messages = parse_notification_message(body)
-            # TODO : call the API to get the notification related data (get the whatapp message id from notification_messages)
-            # then update the notification_messages in message_content field
-            # for other messages , e.g. sending messages also this code is trigerd , verify it with the above API, 
-            # (if there are no notification by that wam.id dont save)
-            notification_messages[0]["message_content"] = "update here"
-            # TODO : save notofication as a message in chat history
-            save_notification(notification_messages[0], agent_user_id, whatsapp_user_collection, whatsapp_chat_collection, whatsapp_message_collection)
+            
+            # Immediately acknowledge receipt before processing
+            background_tasks.add_task(process_notification, notification_messages)
             
             return Response(content="Webhook received successfully!", status_code=200)
             
-        else:
+        elif (notification == 1):
             parsed_messages = parse_user_message(body)
-    
+            
+            processed_parsed_message = parsed_messages[0]
+            
+            phone_number = processed_parsed_message['sender_phone']
+            sender_name = processed_parsed_message['sender_name']
+                        
+             # TODO : 
+            # 1. verify user with phone number
+            # 2. get user id and reference id
+            
+            user_id = 4
+            reference_id = 6
+            
+            processed_parsed_message["user_id"] = user_id
+            processed_parsed_message["reference_id"] = reference_id
 
-        # if not parsed_messages:
-            # print(body)
-            # return Response(content="No valid messages found", status_code=400)
+            # insert user
+            whatsapp_user_collection.insert_user({
+                "name" : sender_name,
+                "phone_number" : phone_number,
+                "referecne_id" : reference_id,
+                "user_id" : user_id
+            })
+            
+            if processed_parsed_message['reply_message_context']:
+                # get the reply message (notification) using whatsapp id and combine it with the user question
+                reply_message_whatsapp_id = processed_parsed_message['reply_message_context']['id']
+                rep_msg, dev_id, batch_num = whatsapp_message_collection.get_notification_content(reply_message_whatsapp_id)
+                cur_msg = processed_parsed_message['message_content']
+            
+                processed_parsed_message['message_content'] = cur_msg
+                processed_parsed_message['notification'] = rep_msg
+                processed_parsed_message['device_id'] = dev_id
+                processed_parsed_message['batch_number'] = batch_num
+                
+                # update notification collection with requested notification dev_id and batch_num
+                whatsapp_notification_collection.update_last_dev_batch({
+                    "phone_number" : phone_number,
+                    "last_notification" : rep_msg,
+                    "last_device_id" : dev_id,
+                    "last_batch_number" : batch_num
+                })
+                
+            
+            # get the last dev_id and batch_num for followupquestions
+            # TODO  : also consider conversation.id in future ,if diffrent from the last, ask user to mention an dev_is and batch_num
+            ret = whatsapp_notification_collection.get_last_dev_batch_entry(phone_number)
+            processed_parsed_message['notification'] = ret["last_notification"]
+            processed_parsed_message['device_id'] = ret["last_device_id"]
+            processed_parsed_message['batch_number'] = ret["last_batch_number"]
+            
+            # get past notifications for the user
+            past_notification_message_ids = whatsapp_notification_collection.get_notification_message_ids_by_phone(phone_number)
+            past_notifications = []
+            for id in past_notification_message_ids:
+                ret = whatsapp_message_collection.get_text_content("_id", id)
+                past_notifications.append(ret)
 
-        ### TODO: we need to save the notifications send by the frontend
-        # for them we don't need to send through the chat bot
-        # we will identify those messages using the id in the notification message
-        # and save them in the notification collection
-        # then when user initiate a reply message on a notification we will use 
-        # the notification collection to get the notification message (we'll use the context field for this) and other related data
-        # using the provided notification API if nessary
-        
-        processed_parsed_message = parsed_messages[0]
-        
-        if processed_parsed_message['reply_message_context']:
-            # get the reply message using whatsapp id and combine it with the user question
-            reply_message_whatsapp_id = processed_parsed_message['reply_message_context']['id']
-            rep_msg = whatsapp_message_collection.get_text_content(reply_message_whatsapp_id)
-            cur_msg = processed_parsed_message['message_content']
-        
-            processed_parsed_message['message_content'] = f"{rep_msg} : {cur_msg}"
-        
-        print(processed_parsed_message)
-        # Immediately acknowledge receipt before processing
-        background_tasks.add_task(process_message, processed_parsed_message)
+            processed_parsed_message["past_notifications"] = past_notifications
+                
+            # print(processed_parsed_message)
+            # Immediately acknowledge receipt before processing
+            background_tasks.add_task(process_message, processed_parsed_message)
 
-        return Response(content="Webhook received successfully!", status_code=200)
-    
+            return Response(content="Webhook received successfully!", status_code=200)
+
+        elif (notification == -1):
+            print("read/deleverd")
+            pass
+        
     except Exception as e:
+        print(-3)
+        traceback.print_exc()
         return Response(content=f"Error: {str(e)}", status_code=500)
 
 @app.api_route("/webhook", methods=["GET", "POST"])
@@ -1181,9 +1285,11 @@ async def watsapp_bot(request: Request, background_tasks: BackgroundTasks):
                 return Response(content=challenge, status_code=200)
             else:
                 # Return 403 response for invalid verify token
+                print("-1")
                 return Response(content="Forbidden access", status_code=403)
         else:
             # Return 400 response for missing parameters
+            print("-2")
             return Response(content="No data provided", status_code=400)
 
     elif request.method == 'POST':
