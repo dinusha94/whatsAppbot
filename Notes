@@ -26,7 +26,7 @@ export FB_ACCESS_TOKEN="EAATgIZBZBKVPIBO5ZAu2XvZBYvbSr5tLdXHIDWw8CbGZCW1jbvv4E3V
 
 
 curl -i -X POST "https://graph.facebook.com/v21.0/538035872729300/messages" \
-     -H "Authorization: Bearer EAATgIZBZBKVPIBO5DTAaDAD6dJXZCYDavPfZBKOwE9xGEexKTq6Woe6ec8Ec06aH4L7Fu0DrWaaD4PLRxpO4djA04VdzkRgiQ0UzobNl1Y1pZCtlJNn8zigTc7IKYHZCbJOh3HBAZBZCQhD5dR0aaZCZBqLJxnlJLI1gyojrKRGxfpmYZBQ2nqYHZBadnbi7SXdfsZBFJJQjspK1tCEi4QS9gtAeTZBDyIaX2qofbikfoZD" \
+     -H "Authorization: Bearer EAATgIZBZBKVPIBO4qhBQppVhj3YLEc608vRE1QFIbZBw27ObreCztnrefHO7OB5TCJ67xligMMX5zmdAa1yFpP7ik5JUSnAx8uHO7nZBXH87ijZAXHT45AQ8hDSQYBOI7kTxzHGQkZBxJ0gZAgghYZBrBvfEfMUPaVf7MBj8cgB6QR8Qa3lGKo5gWjFuJjKQyWAt0PafZBzzZCNAMAhIVlOGhiE5CPUGiDGf6uZAuaC" \
      -H "Content-Type: application/json" \
      -d '{
        "messaging_product": "whatsapp",

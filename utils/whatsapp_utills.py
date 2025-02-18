@@ -13,7 +13,7 @@ load_dotenv(dotenv_path)
 
 # WHAT_TOKEN = os.getenv("ACCESS_TOKEN")   
 # VERIFY_TOKEN = os.getenv("VERIFY_TOKEN")
-PHONE_NUMBER = os.getenv("RECIPIENT_WAID") # my number
+# PHONE_NUMBER = os.getenv("RECIPIENT_WAID") # my number
 VERSION = os.getenv("VERSION")
 PHONE_NUMBER_ID = os.getenv("PHONE_NUMBER_ID") # test number
 
