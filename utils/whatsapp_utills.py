@@ -79,7 +79,7 @@ def extract_device_and_batch_info(message):
     :param message: The notification message string.
     :return: A dictionary with 'device_id' and 'batch_number' or None if not found.
     """
-    pattern = r"The\s+([\w-]+)\s+\(Batch:\s*([\w-]+)\)"
+    pattern = r"The\s+\*([\w-]+)\*\s+\(Batch:\s*([\w-]+)\)"
 
     match = re.search(pattern, message)
     if match:
@@ -209,7 +209,7 @@ def save_notification(notification, agent_user_id, user_collection, chat_collect
 def send_message(response, received_phone_num):
     url = f"https://graph.facebook.com/{VERSION}/{PHONE_NUMBER_ID}/messages"
     headers = {
-        "Authorization": "Bearer EAATgIZBZBKVPIBO4qhBQppVhj3YLEc608vRE1QFIbZBw27ObreCztnrefHO7OB5TCJ67xligMMX5zmdAa1yFpP7ik5JUSnAx8uHO7nZBXH87ijZAXHT45AQ8hDSQYBOI7kTxzHGQkZBxJ0gZAgghYZBrBvfEfMUPaVf7MBj8cgB6QR8Qa3lGKo5gWjFuJjKQyWAt0PafZBzzZCNAMAhIVlOGhiE5CPUGiDGf6uZAuaC",
+        "Authorization": "Bearer EAAIo4ZB4oHeoBOZBbTt6ZAoXrYogviFuh8RtdNDrPKo1FZCqmeYfjEhkIov4GGAJMrJCjYB85ZBDROwgct8OiOyRfOoS0A8R3ZATcGZBgWNFUStAoQFXX7TKTz27CtTK2qDX5UyfzFtMRVuyV459xJHv9HUtvQgxQZB2pXbfZAmKfECBTe0VaguGYx5tUbNUFdPDwQeg9KcjA8iVpaOPJReqCrvO9OfMZD",
         "Content-Type": "application/json"
     }
     

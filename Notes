@@ -37,3 +37,6 @@ curl -i -X POST "https://graph.facebook.com/v21.0/538035872729300/messages" \
        }
      }'
 
+
+
+dev server webhook : https://device-pulse-dev.eastus.cloudapp.azure.com/chatbotservice/webhook

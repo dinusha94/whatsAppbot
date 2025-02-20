@@ -50,6 +50,7 @@ VERIFY_TOKEN = os.getenv("VERIFY_TOKEN")
 # PHONE_NUMBER = os.getenv("RECIPIENT_WAID") # my number
 # VERSION = os.getenv("VERSION")
 PHONE_NUMBER_ID = os.getenv("PHONE_NUMBER_ID") # test number
+NOTIFICATION_TOKEN = os.getenv("NOTIFICATION_TOKEN")
 
 
 # connect to the mongoDB collections
@@ -1048,22 +1049,73 @@ async def common_chat(request: Request):
         "result": response
     }
 
+
+def retrive_whatsapp_notification(phone_number, message_id, token):
+    url = f"https://device-pulse-dev.eastus.cloudapp.azure.com/service/ums/+{phone_number}/whatsAppNotification/"
+    
+    headers = {
+        "Authorization": f"Bearer {token}"
+    }
+    params = {
+        "messageId": message_id
+    }
+    
+    response = requests.get(url, headers=headers, params=params)
+    return response.status_code, response.text
+
+# curl --location 'https://device-pulse-dev.eastus.cloudapp.azure.com/service/user/6295df614be01f8d8ce0a8d1/getAccountInfo' 
+
+def retrive_account_info(user_id):
+    """
+    Fetches account information for a given user ID.
+    
+    :param user_id: The unique identifier for the user.
+    :return: A tuple containing the response status code and response text.
+    """
+    url = f"https://device-pulse-dev.eastus.cloudapp.azure.com/service/user/{user_id}/getAccountInfo"
+    response = requests.get(url)
+    return response.status_code, response.text
+
+
 async def process_notification(notification_messages):
     # TODO : call the API to get the notification related data (get the whatapp message id from notification_messages)
     # then update the notification_messages in message_content field
     # for other messages , e.g. sending messages also this code is trigerd , verify it with the above API, 
     # (if there are no notification by that wam.id dont save)
-    notification_messages[0]["message_content"] = "Hi chatbot! The NUC_G6JY117002X2_4 (Batch: 66) encountered an Residual current too high, Event Code:3802"
     
+    # dummy notifications
+    # notification_messages[0]["message_content"] = "Hi chatbot! The NUC_G6JY117002X2_4 (Batch: 66) encountered an Residual current too high, Event Code:3802"
     #"Hi chatbot ! The NUC_G6JY117002X2_4 (Batch: 66) encountered an AC Energy failuredue to ENERGY PRODUCTION 0 : REASON - CABINET OPEN, Event Code:3501 - Insulation failure."
     
-    # extract device id and batch id
-    ret =  extract_device_and_batch_info(notification_messages[0]["message_content"])
-    notification_messages[0]["device_id"] = ret["device_id"]
-    notification_messages[0]["batch_number"] = ret["batch_number"]
+    wamid = notification_messages[0]["whatsapp_message_id"]
+    phone_num = notification_messages[0]["sender_phone"]
+    status, data = retrive_whatsapp_notification(phone_num, wamid, NOTIFICATION_TOKEN)
     
-    # TODO : save notofication as a message in chat history
-    save_notification(notification_messages[0], agent_user_id, whatsapp_user_collection, whatsapp_chat_collection, whatsapp_message_collection, whatsapp_notification_collection)
+    notification_data = json.loads(data)  # Parse the JSON string
+        
+    # TODO : for now we will update user_id and reference_id in the whatsapp user collection, later we will have a seperate API to get the user_id and reference_id 
+    # using phone number
+    
+    user_id = notification_data.get("content", {}).get("userId", "")
+    print("LLLLLL", user_id)
+    if user_id:
+        
+        notification_messages[0]["message_content"] =  notification_data.get("content", {}).get("message", "")
+        
+        # get the reference_id
+        status, user_data = retrive_account_info(user_id)
+        user_data = json.loads(user_data)
+        print("CCCCCC", user_data)
+        
+        whatsapp_user_collection.update_or_create_user(phone_num, user_id, user_data["content"])
+   
+        # extract device id and batch id
+        ret =  extract_device_and_batch_info(notification_messages[0]["message_content"])
+        notification_messages[0]["device_id"] = ret["device_id"]
+        notification_messages[0]["batch_number"] = ret["batch_number"]
+        
+        # TODO : save notofication as a message in chat history
+        save_notification(notification_messages[0], agent_user_id, whatsapp_user_collection, whatsapp_chat_collection, whatsapp_message_collection, whatsapp_notification_collection)
             
 
 async def process_message(parsed_message):
@@ -1104,13 +1156,10 @@ async def process_message(parsed_message):
 
         if Type == 'text':
             response = generation['response']
-            print("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")
             print(response)
 
-            # send the llm response
-            # send_message(response, parsed_message.get("sender_phone"))
-                
-            # save the chat
+      
+            # send the llm response & save the chat
             save_chat(
                 parsed_message, response, agent_user_id, 
                 whatsapp_user_collection, whatsapp_chat_collection, 
@@ -1171,19 +1220,27 @@ async def process_webhook_data(body):
             # 1. verify user with phone number
             # 2. get user id and reference id
             
-            user_id = 4
-            reference_id = 6
+            # user_id = 4
+            # reference_id = 6
             
-            processed_parsed_message["user_id"] = user_id
-            processed_parsed_message["reference_id"] = reference_id
+            
+            # For now assume that the user will be created , till we get the API to get the user data from phone number
+            # after that we will update the reference_id and user_id here
 
             # insert user
-            whatsapp_user_collection.insert_user({
+            ret = whatsapp_user_collection.insert_user({
                 "name" : sender_name,
                 "phone_number" : phone_number,
-                "referecne_id" : reference_id,
-                "user_id" : user_id
+                # "referecne_id" : reference_id,
+                # "user_id" : user_id
             })
+            
+            print(ret)
+            
+            processed_parsed_message["user_id"] = ret['user_id']
+            processed_parsed_message["reference_id"] = ret['reference_id']
+            
+            
             
             if processed_parsed_message['reply_message_context']:
                 # get the reply message (notification) using whatsapp id and combine it with the user question

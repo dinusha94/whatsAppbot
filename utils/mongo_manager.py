@@ -299,13 +299,44 @@ class MongoDBmanager:
                 print(f"Inserted new document with phone_number: {data['phone_number']}")
 
             # Retrieve the updated document ID
-            updated_doc = collection.find_one(query, {"_id": 1})
-            return updated_doc["_id"]
+            updated_doc = collection.find_one(query)
+            return updated_doc
 
         except Exception as e:
             print(f" Error inserting/updating document: {e}")
             return None 
 
+    
+    def update_or_create_user(self, phone_number, user_id, reference_id):
+        if not phone_number:
+            print("Phone number is required. Operation aborted.")
+            return None
+
+        try:
+            _DB = self.client[self.db]
+            collection = _DB[self.collection]
+
+            # Define the query based on phone_number
+            query = {"phone_number": phone_number}
+            
+            # Define update operation
+            update_data = {"$set": {"user_id": user_id, "reference_id": reference_id}}
+            
+            # Update document if it exists, otherwise insert a new one
+            ret = collection.update_one(query, update_data, upsert=True)
+            
+            if ret.matched_count > 0:
+                print(f"Updated existing document with phone_number: {phone_number}")
+            else:
+                print(f"Inserted new document with phone_number: {phone_number}")
+            
+            # Retrieve the updated document ID
+            updated_doc = collection.find_one(query, {"_id": 1})
+            return updated_doc["_id"]
+
+        except Exception as e:
+            print(f"Error updating/creating document: {e}")
+            return None
     
 
     def insert_chat(self, data):
