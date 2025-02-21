@@ -1118,7 +1118,7 @@ async def process_notification(notification_messages):
         save_notification(notification_messages[0], agent_user_id, whatsapp_user_collection, whatsapp_chat_collection, whatsapp_message_collection, whatsapp_notification_collection)
             
 
-async def process_message(parsed_message):
+async def process_message(parsed_message, reply=False):
     """Processes the message in the background."""
     try:
         # get the qa model
@@ -1133,6 +1133,10 @@ async def process_message(parsed_message):
             whatsapp_chat_collection, 
             whatsapp_message_collection
         )
+        
+        # using past notifications for direct question related to notification seems confusing
+        if reply:
+            parsed_message["past_notifications"] = ""
 
         inputs = {
             "user_query": parsed_message["message_content"],
@@ -1209,6 +1213,10 @@ async def process_webhook_data(body):
             # return Response(content="Webhook received successfully!", status_code=200)
             
         elif (notification == 1):
+            
+            # flag variable to store reply message
+            reply = False
+            
             parsed_messages = parse_user_message(body)
             
             processed_parsed_message = parsed_messages[0]
@@ -1241,8 +1249,9 @@ async def process_webhook_data(body):
             processed_parsed_message["reference_id"] = ret['reference_id']
             
             
-            
+            # reply to a notification
             if processed_parsed_message['reply_message_context']:
+                reply = True
                 # get the reply message (notification) using whatsapp id and combine it with the user question
                 reply_message_whatsapp_id = processed_parsed_message['reply_message_context']['id']
                 rep_msg, dev_id, batch_num = whatsapp_message_collection.get_notification_content(reply_message_whatsapp_id)
@@ -1281,7 +1290,7 @@ async def process_webhook_data(body):
             # print(processed_parsed_message)
             # Immediately acknowledge receipt before processing
             # background_tasks.add_task(process_message, processed_parsed_message)
-            await process_message(processed_parsed_message)
+            await process_message(processed_parsed_message, reply=reply)
 
             # return Response(content="Webhook received successfully!", status_code=200)
 

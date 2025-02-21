@@ -453,11 +453,11 @@ def retrieve(state):
     while call_back < 3:
 
         # Re-Write the questions
-        better_question = question_rewriter.invoke({"user_query": user_query, "chat_history":chat_history,"past_notifications":past_notifications, "notification":notification})
+        # better_question = question_rewriter.invoke({"user_query": user_query, "chat_history":chat_history,"past_notifications":past_notifications, "notification":notification})
 
 
         print("---RE-WRITTEN QUESTION---")
-        print(f"Re-written question: {better_question}")
+        # print(f"Re-written question: {better_question}")
 
         # Retrieval
         embeddings = GoogleGenerativeAIEmbeddings(model="models/embedding-001")  # "models/text-embedding-004" is diffrent from the one (models/embedding-001) creating the embeddings
@@ -469,7 +469,7 @@ def retrieve(state):
 
         retriever_humanoid_qa = vectorstore_humanoid_qa.as_retriever(search_kwargs={"k":3})
 
-        retrieved_docs = retriever_humanoid_qa.invoke(better_question)
+        retrieved_docs = retriever_humanoid_qa.invoke(user_query)
 
         retrieved_docs_str = "\n".join(doc.page_content for doc in retrieved_docs) if retrieved_docs else ""
 
@@ -485,7 +485,7 @@ def retrieve(state):
     for doc in retrieved_docs:
         print(doc.metadata)
 
-    return {"context": filtered_docs, "question": better_question, "chat_history": []}
+    return {"context": filtered_docs, "question": user_query, "chat_history": []}
 
 def generate_troubleshoot(state):
     """
